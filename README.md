@@ -104,9 +104,18 @@ Every parameter describes something being taken away. Zero always means
 | **TEMPORAL ABSENCE** | moments removed rather than frequencies. The field goes on evolving inside the gaps, so silence becomes active material. |
 | **PERSISTENCE** | MEMORY decides whether a subtraction is temporary or permanent; DECAY OF ABSENCE how long removed material stays gone, from milliseconds to INDEFINITE. At the extreme the instrument progressively erodes itself and every interaction leaves a scar. |
 | **GRAVITY** | what the subtraction is drawn toward: frequency, amplitude, transients, density, stereo position, rhythmic repetition, harmonic information, noise, or silence. Aim it at TRANSIENT and the field loses its definition and becomes an amorphous cloud; aim it at HARMONIC and tone dissolves into atmosphere. |
+| **HARMONIC ABSENCE** | Everything out of tune with the root is taken away, and what is left is the field, in tune. `series` keeps one true harmonic series; the scales keep their degrees in every octave. This is the shortest route to something musical: it is a comb, not an oscillator, so nothing is ever added — the pitch was in the noise all along. |
+| **PULSE** | A step sequencer made of absence. Each of the sixteen steps holds for one division of the tempo, and its bar is how much is taken out while it holds. Draw across the bars; LENGTH crops the pattern. |
+| **ARPEGGIO** | The root steps with the pulse, so a different set of partials is left standing on each one. It plays no notes — it moves what survives. Needs HARMONIC ABSENCE to be heard. |
+| **ROLL-OFF** | The top of the field taken off, for when it is too bright. Applied to the survivor and the residue alike, after the two are separated, so the air does not reappear as residue. |
 | **DEPTH & SPACE** | DIRECT REMOVAL pushes material backward — foreground, near, background, distant, buried, inaudible. Remove the centre and the peripheral material survives; remove the sides and a narrow phantom centre is left. |
 | **THE VOID** | silence as a compositional material, with its own size, density, depth and memory. |
 | **RESIDUE** | what subtraction leaves behind. The residue is literally the spectrum the absences removed; the control removes the veil over it. Kinds: harmonic, granular, spatial, transient, reverberant, phase. |
+
+If you want somewhere to start: set HARMONIC ABSENCE to `series` with
+SELECTIVITY at full, bring PULSE DEPTH up, and put ARPEGGIO on `up`. That is a
+pitched, metrical, arpeggiating instrument — assembled entirely out of things
+being taken away.
 
 **PRESERVE** captures a state. **RELEASE** stops holding the absences open and
 lets the field close over them. **EXTRACT** takes a span of time out of the
@@ -153,7 +162,7 @@ FIELD ─▶ EXCAVATOR ─┬─▶ survivor ─▶ depth stage ──┐
 | `js/ui.js` · `js/main.js` | interface and wiring |
 
 The excavator is the instrument's brain. It runs a short-time Fourier
-transform over the field (2048-point window, 75% overlap) and places every bin
+transform over the field (4096-point window, 75% overlap) and places every bin
 in the same two-dimensional space the player sees — frequency against stereo
 position, the latter derived per bin from the ratio of its left and right
 magnitudes. The absences are evaluated against that space:
@@ -171,6 +180,18 @@ sample-accurately after resynthesis, which is what lets MICRO time scales tear
 at the grain of the sound. The residue output carries `original × (1 − gain)`:
 exactly the material that was removed.
 
+HARMONIC ABSENCE is another term in the same product: each bin is measured in
+semitones against the nearest partial of the root, and removed in proportion to
+how far out of tune it is. The window is 4096 points because the comb has to
+resolve it — at 2048 the bins are 23 Hz apart while A1's partials are 55 Hz
+apart, and the comb smears into nothing. No comb is ever asked to pass a band
+narrower than one bin; where a semitone is narrower than the analysis, in the
+bass, the scale modes let go rather than smear a half-removal across it.
+
+THE PULSE and the time-domain absences run after resynthesis, so they stay
+sample-accurate no matter how long the analysis window is: the pulse measures
+within 1% of the tempo it is given.
+
 Nothing in the signal path is ever multiplied above unity.
 
 ### Two notes for anyone reading the DSP
@@ -186,6 +207,20 @@ silently destroys an instrument built this heavily on feedback:
   loop filters are Butterworth for the same reason: a biquad's default `Q` of 1
   peaks about 1.25 dB at cutoff, and two of those inside a feedback loop are
   enough on their own to push it past unity.
+- **The master saturator was amplifying everything it touched.** A `tanh`
+  curve normalised to reach full scale has a slope of 2.25 at the origin: an
+  input of 0.1 came out at 0.22. It applied about 7 dB of gain to the whole
+  output and distorted continuously, which is both a lie about an instrument
+  that claims to never amplify and a likely source of harshness. It is now
+  linear below its knee and bends only above it.
+- **A blur across the mask was removed after measurement, not added after
+  argument.** Smoothing the gain function across frequency is the textbook fix
+  for the fizz that spectral subtraction produces, so it went in — but measured
+  against the real code path it slightly *raised* high-band chatter, and at its
+  five-tap width an isolated removed bin only fell to 0.6, blunting the one
+  operation this instrument exists to perform. What does demonstrably reduce
+  the fizz is ROLL-OFF: 61% less high-band flux, 18 dB less high-frequency
+  energy.
 - **The field's band-limited streams use topology-preserving filters**, which
   are stable at any cutoff below Nyquist. A Chamberlin SVF is not: its
   coefficient reaches 1.96 at the top of the sweep the chaos modulation drives
@@ -206,9 +241,11 @@ node tests/sweep.mjs        # does any mode break it?
 ```
 
 `behaviour.mjs` asserts that the field sounds, that DENSITY 0 is really silence,
-that an absence's scar outlives the absence, that RELEASE closes it, that
-holding still presses an absence deeper, and that no control in the interface
-is additive. `sweep.mjs` visits every movement mode, gravity target, spectral
+that an absence's scar outlives the absence, that RELEASE closes it, that the
+harmonic comb leaves partials standing against the gaps between them, that
+ROLL-OFF takes the top off without eating the body, that the pulse steps at the
+tempo it is given, that holding still presses an absence deeper, and that no
+control in the interface is additive. `sweep.mjs` visits every movement mode, gravity target, spectral
 shape and residue kind under load and asserts the output stays finite and
 bounded — the failure that matters in a graph like this is not a wrong sound
 but a single non-finite sample latching everything into silence.

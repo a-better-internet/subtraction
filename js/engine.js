@@ -148,10 +148,19 @@ export class Engine {
     // A bounded saturator, then a limiter with no make-up gain. Neither can
     // make anything louder than it arrived; together they guarantee that a
     // feedback path cannot run away.
+    // Linear below the knee, bending only above it. A tanh curve normalised to
+    // reach full scale has a slope of 2.25 at the origin -- it would quietly
+    // apply 7 dB of gain to everything and distort continuously, which is both
+    // a lie about this instrument and a source of harshness.
     this.saturator = ctx.createWaveShaper();
     this.saturator.curve = (() => {
-      const n = 2048, c = new Float32Array(n);
-      for (let i = 0; i < n; i++) c[i] = Math.tanh((i / (n - 1) * 2 - 1) * 2.2) / Math.tanh(2.2);
+      const n = 4096, c = new Float32Array(n), knee = 0.6;
+      for (let i = 0; i < n; i++) {
+        const x = i / (n - 1) * 2 - 1;
+        const a = Math.abs(x);
+        c[i] = a <= knee ? x
+          : Math.sign(x) * (knee + (1 - knee) * Math.tanh((a - knee) / (1 - knee)));
+      }
       return c;
     })();
     this.saturator.oversample = '4x';
@@ -366,6 +375,12 @@ export class Engine {
   setVoid(index, values) {
     if (!this.ctx) return;
     this.excavator.port.postMessage({ type: 'void', index, values });
+  }
+
+  /* The pulse pattern: per-step removal depth. */
+  setPattern(pattern) {
+    if (!this.ctx) return;
+    this.excavator.port.postMessage({ type: 'pattern', values: Array.from(pattern) });
   }
 
   /* RELEASE: stop holding the absences open and let the field close over them. */

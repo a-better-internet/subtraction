@@ -45,6 +45,35 @@ export const fmtDepth = (v) =>
     : v < 0.96 ? 'BURIED'
     : 'INAUDIBLE';
 
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+/* ROOT spans C0 to C5: the register where partials are far enough apart for
+ * the comb to actually separate them. */
+export const rootMidi = (v) => Math.round(12 + v * 60);
+export const rootHz = (v) => 440 * Math.pow(2, (rootMidi(v) - 69) / 12);
+export const fmtRoot = (v) => {
+  const m = rootMidi(v);
+  const f = rootHz(v);
+  return NOTE_NAMES[m % 12] + (Math.floor(m / 12) - 1) + ' · '
+    + (f >= 1000 ? (f / 1000).toFixed(2) + ' kHz' : f.toFixed(1) + ' Hz');
+};
+
+export const fmtCents = (v) => '\u00b1' + Math.round(8 + v * 192) + ' cents';
+
+/* ROLL-OFF reads as the corner above which the field is taken away. */
+export const rolloffHz = (v) => 20000 * Math.pow(800 / 20000, v);
+export const fmtRolloff = (v) => {
+  if (v < 0.01) return 'NOTHING REMOVED';
+  const f = rolloffHz(v);
+  return 'ABOVE ' + (f >= 1000 ? (f / 1000).toFixed(1) + ' kHz' : Math.round(f) + ' Hz');
+};
+export const fmtSlope = (v) => Math.round(6 + v * 30) + ' dB/oct';
+
+export const bpm = (v) => Math.round(20 + v * 220);
+export const fmtBpm = (v) => bpm(v) + ' BPM';
+export const fmtSteps = (v) => Math.round(v) + ' steps';
+export const fmtOctaves = (v) => (1 + Math.round(v * 3)) + ' oct';
+
 export const fmtInfinity = (v) =>
   v < 0.1 ? 'HELD'
     : v < 0.45 ? 'CONSTRAINED'
@@ -56,6 +85,7 @@ export const fmtInfinity = (v) =>
 export const GROUPS = [
   {
     name: 'FIELD',
+    rail: 'left',
     note: 'The source is already complete. These decide how much of it is its own.',
     params: [
       { key: 'infinity', label: 'INFINITY', min: 0, max: 1, def: 0.62, fmt: fmtInfinity,
@@ -66,6 +96,7 @@ export const GROUPS = [
   },
   {
     name: 'DENSITY',
+    rail: 'left',
     note: 'How much of the source is allowed to remain.',
     params: [
       { key: 'density', label: 'REMAINS', min: 0, max: 1, def: 1, fmt: fmtPct,
@@ -74,6 +105,7 @@ export const GROUPS = [
   },
   {
     name: 'ABSENCE',
+    rail: 'left',
     note: 'Four absences exist in the field. They remove nothing until they are deepened.',
     params: [
       { key: 'absenceSize', label: 'SIZE', min: 0, max: 1, def: 0.22, fmt: fmtPct,
@@ -88,6 +120,7 @@ export const GROUPS = [
   },
   {
     name: 'SPECTRAL ABSENCE',
+    rail: 'left',
     note: 'A void dragged through the spectrum.',
     params: [
       { key: 'spectralMode', label: 'SHAPE', type: 'select', def: 'notch',
@@ -101,6 +134,7 @@ export const GROUPS = [
   },
   {
     name: 'TEMPORAL ABSENCE',
+    rail: 'left',
     note: 'Moments removed. The field goes on evolving inside the gaps.',
     params: [
       { key: 'temporalAmount', label: 'AMOUNT', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -113,6 +147,7 @@ export const GROUPS = [
   },
   {
     name: 'PERSISTENCE',
+    rail: 'left',
     note: 'Whether subtraction is temporary or permanent.',
     params: [
       { key: 'memory', label: 'MEMORY', min: 0, max: 1, def: 0.3, fmt: fmtMemory,
@@ -123,6 +158,7 @@ export const GROUPS = [
   },
   {
     name: 'GRAVITY',
+    rail: 'left',
     note: 'What the subtraction is drawn toward.',
     params: [
       { key: 'gravityTarget', label: 'TARGET', type: 'select', def: 'frequency',
@@ -133,7 +169,65 @@ export const GROUPS = [
     ],
   },
   {
+    name: 'HARMONIC ABSENCE',
+    rail: 'right',
+    note: 'Everything out of tune with the root is taken away. What is left is '
+        + 'the field, in tune.',
+    params: [
+      { key: 'harmonicMode', label: 'ALLOWED', type: 'select', def: 'off',
+        options: ['off', 'series', 'octaves', 'fifths', 'major', 'minor', 'pentatonic', 'whole'],
+        hint: 'series keeps a harmonic series all the way down · the scales keep their '
+             + 'degrees in every octave, and let the bass alone where a semitone '
+             + 'is narrower than the analysis' },
+      { key: 'harmonicRoot', label: 'ROOT', min: 0, max: 1, def: 0.35, fmt: fmtRoot },
+      { key: 'harmonicAmount', label: 'SELECTIVITY', min: 0, max: 1, def: 0, fmt: fmtPct,
+        hint: 'how much of the out-of-tune material is removed' },
+      { key: 'harmonicWidth', label: 'TOLERANCE', min: 0, max: 1, def: 0.28, fmt: fmtCents,
+        hint: 'how far from a partial a frequency may sit and still survive' },
+    ],
+  },
+  {
+    name: 'PULSE',
+    rail: 'right',
+    note: 'A pulse of absence. Each step decides how much is taken out while it '
+        + 'is the step that holds.',
+    params: [
+      { key: 'pulseAmount', label: 'DEPTH', min: 0, max: 1, def: 0, fmt: fmtPct,
+        hint: 'how much a step removes' },
+      { key: 'pulseTempo', label: 'TEMPO', min: 0, max: 1, def: 0.27, fmt: fmtBpm },
+      { key: 'pulseDivision', label: 'DIVISION', type: 'select', def: '1/16',
+        options: ['1/4', '1/8', '1/8T', '1/16', '1/16T', '1/32'] },
+      { key: 'pulseSteps', label: 'LENGTH', min: 2, max: 16, def: 16, int: true, fmt: fmtSteps },
+      { key: 'pulseSwing', label: 'SWING', min: 0, max: 1, def: 0, fmt: fmtPct },
+      { key: 'pulseEdge', label: 'EDGE', min: 0, max: 1, def: 0.12, fmt: fmtPct,
+        hint: 'hard gate ... breathing' },
+    ],
+  },
+  {
+    name: 'ARPEGGIO',
+    rail: 'right',
+    note: 'The root steps with the pulse, so a different set of partials is left '
+        + 'standing on each one. Needs HARMONIC ABSENCE to be heard.',
+    params: [
+      { key: 'arpMode', label: 'MOTION', type: 'select', def: 'off',
+        options: ['off', 'up', 'down', 'updown', 'random'] },
+      { key: 'arpRange', label: 'RANGE', min: 0, max: 1, def: 0.34, fmt: fmtOctaves },
+    ],
+  },
+  {
+    name: 'ROLL-OFF',
+    rail: 'right',
+    note: 'The top of the field taken away, for when it is too bright.',
+    params: [
+      { key: 'rolloff', label: 'ROLL-OFF', min: 0, max: 1, def: 0.2, fmt: fmtRolloff,
+        hint: 'removes the air above a corner that falls as you turn it' },
+      { key: 'rolloffSlope', label: 'SLOPE', min: 0, max: 1, def: 0.4, fmt: fmtSlope,
+        hint: 'how steeply the top is taken off' },
+    ],
+  },
+  {
     name: 'DEPTH & SPACE',
+    rail: 'right',
     note: 'Sound is not silenced but made inaccessible.',
     params: [
       { key: 'depth', label: 'DIRECT REMOVAL', min: 0, max: 1, def: 0, fmt: fmtDepth, node: true,
@@ -146,6 +240,7 @@ export const GROUPS = [
   },
   {
     name: 'THE VOID',
+    rail: 'right',
     note: 'Silence treated as material.',
     params: [
       { key: 'voidDensity', label: 'DENSITY', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -160,6 +255,7 @@ export const GROUPS = [
   },
   {
     name: 'RESIDUE',
+    rail: 'right',
     note: 'What subtraction leaves behind, once the veil over it is removed.',
     params: [
       { key: 'residueVeil', label: 'VEIL REMOVED', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -171,6 +267,7 @@ export const GROUPS = [
   },
   {
     name: 'OUTPUT',
+    rail: 'right',
     params: [
       { key: 'attenuation', label: 'ATTENUATION', min: 0, max: 1, def: 0, fmt: fmtPct, node: true,
         hint: 'level removed from the output' },
@@ -185,5 +282,13 @@ export const defaults = () => {
   for (const p of ALL_PARAMS) o[p.key] = p.def;
   return o;
 };
+
+/* The pulse pattern is per-step removal depth, not a note list: a step at 1
+ * takes everything out for as long as it holds. The default leaves the field
+ * standing on each quarter and removes it in between. */
+export const defaultPattern = () =>
+  Array.from({ length: 16 }, (_, i) => (i % 4 === 0 ? 0 : 1));
+
+export const PATTERN_STEPS = 16;
 
 export const NODE_KEYS = new Set(ALL_PARAMS.filter((p) => p.node).map((p) => p.key));

@@ -20,6 +20,7 @@ const statusEl = el('status');
 const removedEl = el('removed');
 const meterEl = el('meter-fill');
 const veilEl = el('veil');
+const rootEl = el('root');
 
 let last = performance.now();
 let removed = 0;
@@ -28,6 +29,11 @@ let looping = false;
 engine.onFrame = (f) => {
   viz.setFrame(f);
   removed += (f.removed - removed) * 0.1;
+  ui.markStep(f.step);
+  // The root moves when the arpeggio steps it, so it is worth showing.
+  rootEl.textContent = f.root
+    ? (f.root >= 1000 ? (f.root / 1000).toFixed(2) + ' kHz' : f.root.toFixed(1) + ' Hz')
+    : '\u2014';
 };
 
 function loop(now) {
@@ -36,7 +42,11 @@ function loop(now) {
   ui.tickHold(dt);
   viz.draw({ voids: ui.voids, gravityAmount: ui.state.gravityAmount });
   removedEl.textContent = Math.round(removed * 100) + '%';
-  meterEl.style.width = (Math.min(1, engine.level()) * 100).toFixed(1) + '%';
+  // Decibels, not amplitude: this instrument spends most of its time quiet,
+  // and a linear meter reads as broken when the field is mostly gone.
+  const lvl = engine.level();
+  const db = lvl > 1e-5 ? (20 * Math.log10(lvl) + 54) / 54 : 0;
+  meterEl.style.width = (Math.max(0, Math.min(1, db)) * 100).toFixed(1) + '%';
   requestAnimationFrame(loop);
 }
 
@@ -60,6 +70,7 @@ async function enter() {
     return;
   }
   engine.pushParams(ui.state);
+  engine.setPattern(ui.pattern);
   ui.voids.forEach((v, i) => engine.setVoid(i, v));
   veilEl.classList.add('gone');
   note('the field is open. listen before you remove anything.');

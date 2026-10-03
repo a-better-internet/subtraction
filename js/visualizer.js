@@ -270,9 +270,10 @@ export class Visualizer {
         (20 * Math.log10(Math.max(1e-12, v * n)) + tilt + DB_RANGE) / DB_RANGE));
       const a = db(post);
       const ghost = db(pre) * 0.3;
-      const red = Math.round(Math.min(255, 6 + ghost * 46 + a * a * 190));
-      const grn = Math.round(Math.min(255, 9 + ghost * 56 + a * a * 222));
-      const blu = Math.round(Math.min(255, 14 + ghost * 84 + a * a * 236));
+      const v = Math.pow(a, 1.25);
+      const red = Math.round(Math.min(255, 7 + ghost * 52 + v * 196));
+      const grn = Math.round(Math.min(255, 10 + ghost * 64 + v * 226));
+      const blu = Math.round(Math.min(255, 16 + ghost * 96 + v * 240));
       hc.fillStyle = `rgb(${red},${grn},${blu})`;
       hc.fillRect(W - 1, py, 1, 1);
     }

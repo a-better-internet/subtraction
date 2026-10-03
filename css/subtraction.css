@@ -182,7 +182,7 @@ h2 {
   letter-spacing: 0.02em;
 }
 
-#absence-panel, #history-wrap, #preserved-wrap { margin: 26px auto 0; max-width: 620px; }
+#absence-panel, #pulse-panel, #history-wrap, #preserved-wrap { margin: 26px auto 0; max-width: 620px; }
 
 .absence {
   display: grid;
@@ -201,6 +201,41 @@ h2 {
 .absence.on .num { color: var(--amber); border-color: rgba(236,206,140,0.5); }
 .absence .depthv { font-size: 10px; color: var(--text-faint); text-align: right; }
 .absence.engaged .depthv { color: var(--text); }
+
+/* The step editor: each bar is how much that step takes away. */
+#steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 2px;
+  height: 66px;
+  touch-action: none;
+}
+
+.step {
+  position: relative;
+  background: rgba(140,170,210,0.05);
+  border: 1px solid transparent;
+  cursor: ns-resize;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.step-fill {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(220,234,246,0.62), rgba(120,150,190,0.28));
+  transition: height .06s linear;
+}
+.step span {
+  position: absolute;
+  bottom: 2px; left: 0; right: 0;
+  text-align: center;
+  font-size: 8px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.step.unused { opacity: 0.28; }
+.step.now { border-color: rgba(236,206,140,0.75); }
+.step.now .step-fill { background: linear-gradient(180deg, var(--amber), rgba(236,206,140,0.3)); }
 
 #history {
   display: block;

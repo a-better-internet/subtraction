@@ -6,7 +6,7 @@
  * available gesture is refusal.
  */
 
-import { GROUPS, defaults } from './params.js';
+import { GROUPS, defaults, defaultPattern, PATTERN_STEPS } from './params.js';
 
 const NUMERALS = ['I', 'II', 'III', 'IV'];
 
@@ -25,10 +25,12 @@ export class UI {
     this.selected = 0;
     this.preserved = [];
     this.controls = new Map();
+    this.pattern = defaultPattern();
     this.drag = null;
     this.holdSince = 0;
 
     this.buildAbsencePanel();
+    this.buildStepGrid();
     this.buildGroups();
     this.bindField();
     this.bindKeys();
@@ -81,12 +83,84 @@ export class UI {
     });
   }
 
+  /* ---------------- the step editor ---------------- */
+
+  buildStepGrid() {
+    const host = this.root.querySelector('#steps');
+    this.stepCells = [];
+    for (let i = 0; i < PATTERN_STEPS; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'step';
+      cell.innerHTML = `<div class="step-fill"></div><span>${i + 1}</span>`;
+      host.appendChild(cell);
+      this.stepCells.push(cell);
+    }
+
+    const depthAt = (ev, cell) => {
+      const r = cell.getBoundingClientRect();
+      return Math.max(0, Math.min(1, 1 - (ev.clientY - r.top) / r.height));
+    };
+    const cellAt = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const cell = el && el.closest('.step');
+      return cell ? this.stepCells.indexOf(cell) : -1;
+    };
+
+    let painting = false;
+    const paint = (ev) => {
+      const i = cellAt(ev);
+      if (i < 0) return;
+      this.setStep(i, depthAt(ev, this.stepCells[i]));
+    };
+
+    host.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      painting = true;
+      host.setPointerCapture(ev.pointerId);
+      paint(ev);
+    });
+    host.addEventListener('pointermove', (ev) => { if (painting) paint(ev); });
+    const stop = (ev) => {
+      painting = false;
+      try { host.releasePointerCapture(ev.pointerId); } catch { /* already gone */ }
+    };
+    host.addEventListener('pointerup', stop);
+    host.addEventListener('pointercancel', stop);
+
+    this.syncStepGrid();
+    this.syncStepLength();
+  }
+
+  setStep(i, depth) {
+    this.pattern[i] = depth;
+    this.engine.setPattern(this.pattern);
+    this.syncStepGrid();
+  }
+
+  syncStepGrid() {
+    this.stepCells.forEach((cell, i) => {
+      cell.querySelector('.step-fill').style.height = (this.pattern[i] * 100).toFixed(1) + '%';
+    });
+  }
+
+  /* Steps past LENGTH are never reached, so they are shown as inactive. */
+  syncStepLength() {
+    const n = Math.round(this.state.pulseSteps);
+    this.stepCells.forEach((cell, i) => cell.classList.toggle('unused', i >= n));
+  }
+
+  markStep(step) {
+    if (step === this.lastStep || !this.stepCells) return;
+    this.lastStep = step;
+    this.stepCells.forEach((cell, i) => cell.classList.toggle('now', i === step));
+  }
+
   /* ---------------- generated parameter controls ---------------- */
 
   buildGroups() {
     const left = this.root.querySelector('#rail-left');
     const right = this.root.querySelector('#rail-right');
-    GROUPS.forEach((g, gi) => {
+    GROUPS.forEach((g) => {
       const sec = document.createElement('section');
       sec.className = 'group';
       const h = document.createElement('h2');
@@ -99,7 +173,7 @@ export class UI {
         sec.appendChild(n);
       }
       for (const p of g.params) sec.appendChild(this.buildControl(p));
-      (gi % 2 === 0 ? left : right).appendChild(sec);
+      (g.rail === 'right' ? right : left).appendChild(sec);
     });
   }
 
@@ -132,14 +206,17 @@ export class UI {
     } else {
       input = document.createElement('input');
       input.type = 'range';
-      input.min = p.min; input.max = p.max; input.step = 0.001;
+      input.min = p.min; input.max = p.max;
+      input.step = p.int ? 1 : 0.001;
       input.value = this.state[p.key];
     }
     input.className = 'ctl-input';
     input.setAttribute('aria-label', p.label);
     input.addEventListener('input', () => {
-      this.state[p.key] = p.type === 'select' ? input.value : +input.value;
+      const raw = p.type === 'select' ? input.value : +input.value;
+      this.state[p.key] = p.int ? Math.round(raw) : raw;
       this.refresh(p.key);
+      if (p.key === 'pulseSteps') this.syncStepLength();
       this.engine.pushParams(this.state);
     });
     wrap.appendChild(input);
@@ -172,6 +249,8 @@ export class UI {
   refreshAll() {
     for (const key of this.controls.keys()) this.refresh(key);
     this.syncVoidUI();
+    this.syncStepGrid();
+    this.syncStepLength();
   }
 
   /* ---------------- excavation gesture ---------------- */
@@ -271,6 +350,7 @@ export class UI {
     this.preserved.push({
       state: { ...this.state },
       voids: this.voids.map((v) => ({ ...v })),
+      pattern: [...this.pattern],
       at: new Date(),
     });
     this.renderPreserved();
@@ -281,8 +361,10 @@ export class UI {
     if (!s) return;
     this.state = { ...s.state };
     this.voids = s.voids.map((v) => ({ ...v }));
+    this.pattern = [...(s.pattern || this.pattern)];
     this.refreshAll();
     this.engine.pushParams(this.state);
+    this.engine.setPattern(this.pattern);
     this.voids.forEach((_, k) => this.engine.setVoid(k, this.voids[k]));
   }
 
