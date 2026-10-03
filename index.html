@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUBTRACTION</title>
+<meta name="description" content="An instrument for sculpting infinity. The sound is already complete; every control removes.">
+<link rel="stylesheet" href="css/subtraction.css">
+</head>
+<body>
+
+<header id="top">
+  <h1>SUBTRACTION</h1>
+  <p class="sub">an instrument for sculpting infinity</p>
+  <div id="transport">
+    <button id="enter">ENTER</button>
+    <button id="withdraw" disabled>WITHDRAW</button>
+    <button id="preserve" disabled>PRESERVE</button>
+    <button id="release" disabled>RELEASE</button>
+    <button id="extract" disabled>EXTRACT</button>
+  </div>
+  <p id="status">the field is already sounding. it is waiting to be entered.</p>
+</header>
+
+<main>
+  <aside id="rail-left" class="rail"></aside>
+
+  <section id="centre">
+    <div id="field-wrap">
+      <canvas id="field" aria-label="the subtraction field"></canvas>
+      <div id="veil">
+        <p>the sound is already complete</p>
+        <p class="small">there is no oscillator to choose and nothing to construct.<br>
+          press ENTER, then do nothing for a while.</p>
+      </div>
+    </div>
+
+    <div id="field-meta">
+      <div class="metric"><span>REMOVED</span><b id="removed">0%</b></div>
+      <div class="metric wide"><span>REMAINING</span><div id="meter"><div id="meter-fill"></div></div></div>
+    </div>
+
+    <div id="absence-panel">
+      <h2>ABSENCES</h2>
+      <p class="note">drag in the field to steer one. hold still to press it deeper.
+        shift-drag for depth, scroll for size, keys 1–4 to choose.</p>
+      <div id="absences"></div>
+    </div>
+
+    <div id="history-wrap">
+      <h2>TEMPORAL EROSION</h2>
+      <canvas id="history" aria-label="history of what was allowed to remain"></canvas>
+    </div>
+
+    <div id="preserved-wrap">
+      <h2>PRESERVED STATES</h2>
+      <div id="preserved"></div>
+    </div>
+  </section>
+
+  <aside id="rail-right" class="rail"></aside>
+</main>
+
+<footer>
+  <p>There is no add operation anywhere in this interface. You can only
+     remove, suppress, erase, bury, obscure, isolate, silence, constrain, or wait.</p>
+  <ol id="rite">
+    <li>ENTER</li><li>LISTEN</li><li>IDENTIFY</li><li>REMOVE</li>
+    <li>WAIT</li><li>REMOVE AGAIN</li><li>PRESERVE</li><li>RELEASE</li>
+  </ol>
+</footer>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
