@@ -106,6 +106,7 @@ export class Engine {
 
     await ctx.audioWorklet.addModule('worklets/field-processor.js');
     await ctx.audioWorklet.addModule('worklets/excavator-processor.js');
+    await ctx.audioWorklet.addModule('worklets/plexus-processor.js');
 
     // ---------------- the source ----------------
     this.field = new AudioWorkletNode(ctx, 'field-processor', {
@@ -190,8 +191,10 @@ export class Engine {
     this.running = true;
   }
 
-  /* DEPTH: the direct sound is removed, which is what exposes the
-   * reverberant field that was there the whole time. */
+  /* DEPTH: the direct sound is removed, which is what exposes the Plexus
+   * standing behind it. The network is never switched on or mixed in -- it
+   * runs from the moment the instrument is entered, and DEPTH is the only
+   * thing between the player and it. */
   buildDepthStage() {
     const ctx = this.ctx;
     this.directGain = ctx.createGain();
@@ -200,7 +203,14 @@ export class Engine {
     this.directLP.frequency.value = 18000;
     this.preDelay = ctx.createDelay(0.5);
     this.preDelay.delayTime.value = 0.012;
-    this.space = makeFDN(ctx, [0.0873, 0.1181, 0.1523, 0.1931], 0.95, 6500, 0.85);
+
+    this.plexus = new AudioWorkletNode(ctx, 'plexus-processor', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+      channelCount: 2,
+      channelCountMode: 'explicit',
+    });
     this.spaceGain = ctx.createGain();
 
     this.survivor.connect(this.directGain);
@@ -208,8 +218,8 @@ export class Engine {
     this.directLP.connect(this.master);
 
     this.survivor.connect(this.preDelay);
-    this.preDelay.connect(this.space.input);
-    this.space.output.connect(this.spaceGain);
+    this.preDelay.connect(this.plexus);
+    this.plexus.connect(this.spaceGain);
     this.spaceGain.connect(this.master);
 
     this.setDepth(0);
@@ -222,11 +232,9 @@ export class Engine {
     this.directGain.gain.setTargetAtTime(Math.pow(1 - d, 1.5), t, ramp);
     this.directLP.frequency.setTargetAtTime(18000 * Math.exp(-3.4 * d), t, ramp);
     this.preDelay.delayTime.setTargetAtTime(0.012 + 0.1 * d, t, ramp);
-    // The reverberant field survives until the material is buried outright.
+    // The Plexus survives until the material is buried outright.
     const burial = Math.max(0, (d - 0.78) / 0.22);
-    this.spaceGain.gain.setTargetAtTime(0.5 * (1 - burial * burial), t, ramp);
-    this.space.lps.forEach((lp) =>
-      lp.frequency.setTargetAtTime(6500 * Math.exp(-1.9 * d), t, ramp));
+    this.spaceGain.gain.setTargetAtTime(0.62 * (1 - burial * burial), t, ramp);
   }
 
   /* All six residue processors run in parallel, always. The KIND control
@@ -368,6 +376,7 @@ export class Engine {
       type: 'params', infinity: state.infinity, timeScale: state.timeScale,
     });
     this.setDepth(state.depth);
+    this.pushPlexus(state);
     if (state.residueType !== this.residueKind) this.setResidueKind(state.residueType);
     this.outGain.gain.setTargetAtTime(1 - state.attenuation, this.ctx.currentTime, 0.05);
   }
@@ -375,6 +384,19 @@ export class Engine {
   setVoid(index, values) {
     if (!this.ctx) return;
     this.excavator.port.postMessage({ type: 'void', index, values });
+  }
+
+  /* The Plexus runs on its own controls, sent whole each time they move. */
+  pushPlexus(state) {
+    if (!this.plexus) return;
+    this.plexus.port.postMessage({
+      type: 'params',
+      values: {
+        plexus: state.plexus, size: state.plexSize, diffuse: state.plexDiffuse,
+        color: state.plexColor, decay: state.plexDecay, couple: state.couple,
+        skew: state.skew, skewMode: state.skewMode, send: state.send,
+      },
+    });
   }
 
   /* The pulse pattern: per-step removal depth. */

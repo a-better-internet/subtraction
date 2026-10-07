@@ -108,6 +108,7 @@ Every parameter describes something being taken away. Zero always means
 | **PULSE** | A step sequencer made of absence. Each of the sixteen steps holds for one division of the tempo, and its bar is how much is taken out while it holds. Draw across the bars; LENGTH crops the pattern. |
 | **ARPEGGIO** | The root steps with the pulse, so a different set of partials is left standing on each one. It plays no notes — it moves what survives. Needs HARMONIC ABSENCE to be heard. |
 | **ROLL-OFF** | The top of the field taken off, for when it is too bright. Applied to the survivor and the residue alike, after the two are separated, so the air does not reappear as residue. |
+| **THE PLEXUS** | A network of feedback paths the signal is already circulating through, after the Make Noise Soundhack Plexiphon. PLEXUS *removes paths*: at zero all eight are present and fully entangled, which is the reverb-like end; turning it up takes paths out and unpicks their connections until two discrete taps are left, which is the echo-like end. Everything in between is neither. SIZE is the temporal relation between the paths — a room at one end, a repeat rate at the other. DIFFUSE takes the edge off each path; COLOR decides which end of the spectrum the network forgets first; DECAY runs from a short room to all but infinite. COUPLE removes the separation between the two sides, from dual mono to interlaced; SKEW pulls them apart (or pushes them together) on PLEXUS, SIZE and COLOR. SEND is normalled high and decides whether the field is fed in at all — patch PULSE GATE into it at a negative depth and the feed is withheld on the removed steps while the paths keep circulating what they already hold. |
 | **DEPTH & SPACE** | DIRECT REMOVAL pushes material backward — foreground, near, background, distant, buried, inaudible. Remove the centre and the peripheral material survives; remove the sides and a narrow phantom centre is left. |
 | **THE VOID** | silence as a compositional material, with its own size, density, depth and memory. |
 | **RESIDUE** | what subtraction leaves behind. The residue is literally the spectrum the absences removed; the control removes the veil over it. Kinds: harmonic, granular, spatial, transient, reverberant, phase. |
@@ -116,6 +117,35 @@ If you want somewhere to start: set HARMONIC ABSENCE to `series` with
 SELECTIVITY at full, bring PULSE DEPTH up, and put ARPEGGIO on `up`. That is a
 pitched, metrical, arpeggiating instrument — assembled entirely out of things
 being taken away.
+
+### The patch bay
+
+Six cords. Each takes a control voltage from somewhere and moves one control
+with it; DEPTH is an attenuverter, so a negative setting inverts the voltage.
+Nothing in the patch bay makes sound — it only moves the things that take
+sound away.
+
+Alongside the usual shapes (sine, triangle, ramp, saw, square, sample-and-hold
+and smoothed random, each with its own rate from 0.01 Hz to 20 Hz) the sources
+include the instrument listening to itself:
+
+| | |
+|---|---|
+| ENVELOPE FOLLOWER | the amplitude of the output, slewed by RATE — the Plexiphon's CV output, which exists to put the network back into its own controls |
+| PULSE GATE · PULSE STEP CV · CLOCK RAMP | the step sequencer as a gate, as a stepped voltage, and as a ramp across each step |
+| FIELD CHAOS X / Y | the Lorenz attractor the field is already using to decide what to do next |
+| SPECTRAL CENTROID · STEREO DRIFT | where the surviving energy sits in the field, and how far to one side |
+| REMOVED AMOUNT | how much of the field is gone right now |
+
+Any control marked modulatable is a destination, and so are the first two
+absences — a voltage steering *where* the excavation happens is the whole
+point. A control being driven reads its live value in rust rather than where
+its slider sits.
+
+Three to try: ENVELOPE FOLLOWER into PLEXUS at a negative depth, so the
+network unpicks itself as it gets louder. PULSE GATE into SEND at −100%, so
+the feed is withheld in rhythm. FIELD CHAOS Y into ABSENCE I · FREQUENCY, and
+the field decides what to excavate.
 
 **PRESERVE** captures a state. **RELEASE** stops holding the absences open and
 lets the field close over them. **EXTRACT** takes a span of time out of the
@@ -147,15 +177,23 @@ interface is capable of adding material.
 ## How it works
 
 ```
-FIELD ─▶ EXCAVATOR ─┬─▶ survivor ─▶ depth stage ──┐
-                    │                              ├─▶ saturator ─▶ limiter ─▶ out
-                    └─▶ residue  ─▶ residue stage ─┘
+FIELD ─▶ EXCAVATOR ─┬─▶ survivor ─┬─▶ direct ──────────┐
+                    │             └─▶ THE PLEXUS ──────┤
+                    │                                  ├─▶ saturator ─▶ limiter ─▶ out
+                    └─▶ residue  ─▶ residue stage ─────┘
 ```
+
+The Plexus sits where a reverb would, but it is never mixed in: like the
+reverberant field it replaces, it runs from the moment the instrument is
+entered, and DIRECT REMOVAL is the only thing standing between the player and
+it. There is no wet/dry control anywhere in the instrument.
 
 | file | |
 |---|---|
 | `worklets/field-processor.js` | the infinite field |
 | `worklets/excavator-processor.js` | the subtraction itself |
+| `worklets/plexus-processor.js` | the network of feedback paths |
+| `js/modulation.js` | the patch bay: control voltage sources and cords |
 | `js/engine.js` | audio graph: depth, space, residue, master |
 | `js/visualizer.js` | the cartography |
 | `js/params.js` | the parameter model the interface is generated from |
@@ -221,6 +259,23 @@ silently destroys an instrument built this heavily on feedback:
   operation this instrument exists to perform. What does demonstrably reduce
   the fizz is ROLL-OFF: 61% less high-band flux, 18 dB less high-frequency
   energy.
+- **A feedback network decays if and only if its matrix has a spectral radius
+  below one, and nothing weaker will do.** The Plexus blends between an
+  identity matrix and a Hadamard as PLEXUS removes paths, scales every entry
+  that crosses between the two sides by COUPLE, and fades paths in and out —
+  and that blend is not orthogonal, so normalising each column's energy does
+  not bound it. With SKEW set to inverse the network settled into a plateau
+  and rang for ever at a steady level. The matrix is now scaled by its
+  measured spectral radius, found by power iteration at control rate, with the
+  ratio averaged in the log domain so a complex eigenvalue pair still
+  converges. Normalising the columns by their *magnitudes* instead is the
+  opposite mistake: it bounds the peak but costs about root-N of the decay,
+  and the network dies long before DECAY says it should.
+- **A worklet's parameters have to arrive with it, not after it.** In an
+  `OfflineAudioContext` a `postMessage` races the render and may never be
+  delivered, which made several measurements come back byte-identical and look
+  like the controls did nothing. The Plexus takes its settings from
+  `processorOptions` at construction as well as by message.
 - **The field's band-limited streams use topology-preserving filters**, which
   are stable at any cutoff below Nyquist. A Chamberlin SVF is not: its
   coefficient reaches 1.96 at the top of the sweep the chaos modulation drives
@@ -237,6 +292,7 @@ With the directory served on port 8099:
 
 ```sh
 node tests/behaviour.mjs    # does it do what it claims?
+node tests/patch.mjs        # the Plexus and the patch bay
 node tests/sweep.mjs        # does any mode break it?
 ```
 
@@ -250,7 +306,15 @@ shape and residue kind under load and asserts the output stays finite and
 bounded — the failure that matters in a graph like this is not a wrong sound
 but a single non-finite sample latching everything into silence.
 
-Both drive real Chromium via Playwright. Point `PLAYWRIGHT` at your install if
+`patch.mjs` renders the Plexus's impulse response offline and asserts that
+PLEXUS takes paths out and decorrelates them, that DECAY spans a short room to
+all but infinite while always decaying, that COUPLE interlaces the sides, that
+DIFFUSE takes the edge off, and that SEND withholds the feed; then, live, it
+patches all sixteen control voltage sources in turn and asserts each one moves
+its destination, that the bipolar ones swing both ways, and that pulling the
+cords puts the controls back.
+
+They drive real Chromium via Playwright. Point `PLAYWRIGHT` at your install if
 it is not resolvable by name:
 
 ```sh

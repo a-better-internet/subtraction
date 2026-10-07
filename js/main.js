@@ -1,6 +1,9 @@
 import { Engine } from './engine.js';
 import { Visualizer } from './visualizer.js';
 import { UI } from './ui.js';
+import { ALL_PARAMS, VOID_DEST_BY_KEY } from './params.js';
+
+const PARAM_BY_KEY = new Map(ALL_PARAMS.map((p) => [p.key, p]));
 
 const root = document.body;
 const engine = new Engine();
@@ -26,10 +29,25 @@ let last = performance.now();
 let removed = 0;
 let looping = false;
 
+/* What the instrument knows about itself, handed to the patch bay each frame
+ * so its own signals can be used as control voltage. */
+const field = {
+  level: 0, gate: 1, stepValue: 0, clock: 0,
+  chaosX: 0, chaosY: 0, centroid: 0.5, stereo: 0, removed: 0,
+};
+
 engine.onFrame = (f) => {
   viz.setFrame(f);
   removed += (f.removed - removed) * 0.1;
   ui.markStep(f.step);
+  field.gate = f.gate;
+  field.clock = f.clock || 0;
+  field.chaosX = f.chaosX || 0;
+  field.chaosY = f.chaosY || 0;
+  field.centroid = f.gravY;
+  field.stereo = f.gravX;
+  field.removed = f.removed;
+  field.stepValue = f.step >= 0 ? (ui.pattern[f.step] || 0) : 0;
   // The root moves when the arpeggio steps it, so it is worth showing.
   rootEl.textContent = f.root
     ? (f.root >= 1000 ? (f.root / 1000).toFixed(2) + ' kHz' : f.root.toFixed(1) + ' Hz')
@@ -40,6 +58,18 @@ function loop(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   ui.tickHold(dt);
+
+  // ---- the patch bay ----
+  field.level = engine.level();
+  const offsets = ui.mod.evaluate(dt, field, ui.spans());
+  if (ui.mod.cords.some((c) => c.source !== 'none' && c.dest !== 'none' && c.depth)) {
+    applyModulation(offsets);
+    ui.showModulated(offsets);
+  } else if (Object.keys(ui.modValues).length) {
+    ui.showModulated({});
+    engine.pushParams(ui.state);
+  }
+
   viz.draw({ voids: ui.voids, gravityAmount: ui.state.gravityAmount });
   removedEl.textContent = Math.round(removed * 100) + '%';
   // Decibels, not amplitude: this instrument spends most of its time quiet,
@@ -48,6 +78,35 @@ function loop(now) {
   const db = lvl > 1e-5 ? (20 * Math.log10(lvl) + 54) / 54 : 0;
   meterEl.style.width = (Math.max(0, Math.min(1, db)) * 100).toFixed(1) + '%';
   requestAnimationFrame(loop);
+}
+
+/* Cords move the controls; the controls are what remove things. The base
+ * values the player set are never written over -- the offset is applied on
+ * its way to the engine and the sliders stay where they were put. */
+function applyModulation(offsets) {
+  const keys = Object.keys(offsets);
+  if (!keys.length) return;
+  const state = { ...ui.state };
+  let touchedVoid = false;
+  for (const key of keys) {
+    const vd = VOID_DEST_BY_KEY.get(key);
+    if (vd) { touchedVoid = true; continue; }
+    const p = PARAM_BY_KEY.get(key);
+    if (!p) continue;
+    state[key] = Math.max(p.min, Math.min(p.max, state[key] + offsets[key]));
+  }
+  engine.pushParams(state);
+
+  if (touchedVoid) {
+    for (const key of keys) {
+      const vd = VOID_DEST_BY_KEY.get(key);
+      if (!vd) continue;
+      const base = ui.voids[vd.void];
+      const lo = vd.field === 'x' ? -1 : 0;
+      const v = Math.max(lo, Math.min(1, base[vd.field] + offsets[key]));
+      engine.setVoid(vd.void, { ...base, [vd.field]: v });
+    }
+  }
 }
 
 function note(text, kind) {

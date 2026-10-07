@@ -577,6 +577,7 @@ class ExcavatorProcessor extends AudioWorkletProcessor {
     const sw = p.pulseSwing * 0.66;
     len *= (this.pulseStep & 1) ? 1 - sw * 0.5 : 1 + sw * 0.5;
     this.pulseCount = Math.max(32, len);
+    this.pulseLen = this.pulseCount;
 
     const depth = this.pattern[this.pulseStep] * p.pulseAmount;
     this.pulseTarget = 1 - depth;
@@ -947,6 +948,11 @@ class ExcavatorProcessor extends AudioWorkletProcessor {
       root: this.p.harmonicMode === 'off' ? 0 : this.rootHz(),
       gravX: this.gravX, gravY: this.gravY,
       removed: this.removedFrac,
+      // The field's own chaos and the phase of its pulse, so both can be
+      // taken out of the instrument as control voltage and patched back in.
+      chaosX: clamp(this.lx / 18, -1, 1),
+      chaosY: clamp((this.lz - 24) / 26, -1, 1),
+      clock: this.pulseLen > 0 ? clamp(1 - this.pulseCount / this.pulseLen, 0, 1) : 0,
     }, [data.buffer]);
   }
 

@@ -182,7 +182,9 @@ h2 {
   letter-spacing: 0.02em;
 }
 
-#absence-panel, #pulse-panel, #history-wrap, #preserved-wrap { margin: 26px auto 0; max-width: 620px; }
+#absence-panel, #pulse-panel, #patch-wrap, #history-wrap, #preserved-wrap {
+  margin: 26px auto 0; max-width: 620px;
+}
 
 .absence {
   display: grid;
@@ -201,6 +203,56 @@ h2 {
 .absence.on .num { color: var(--amber); border-color: rgba(236,206,140,0.5); }
 .absence .depthv { font-size: 10px; color: var(--text-faint); text-align: right; }
 .absence.engaged .depthv { color: var(--text); }
+
+/* The patch bay. */
+#cord-head, .cord {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 0.85fr) minmax(0, 0.85fr) 112px;
+  gap: 6px;
+  align-items: center;
+}
+#cord-head {
+  margin-bottom: 4px;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--text-faint);
+}
+.cord { padding: 2px 0; }
+.cord-n { font-size: 9px; color: var(--text-faint); }
+.cord.patched .cord-n { color: var(--amber); }
+.cord select { padding: 4px 5px; font-size: 9px; letter-spacing: 0.08em; }
+.cord.patched select { border-color: rgba(236,206,140,0.34); }
+.cord-read {
+  font-size: 9px;
+  color: var(--text-faint);
+  text-align: right;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.cord.patched .cord-read { color: var(--amber); }
+
+/* An attenuverter fills out from the centre, either way. */
+.cord-depth { --from: 50%; --to: 50%; }
+.cord-depth::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg,
+    rgba(140,170,210,0.13) 0 var(--from), var(--amber) var(--from) var(--to),
+    rgba(140,170,210,0.13) var(--to) 100%);
+}
+.cord-depth::-moz-range-track {
+  background: linear-gradient(90deg,
+    rgba(140,170,210,0.13) 0 var(--from), var(--amber) var(--from) var(--to),
+    rgba(140,170,210,0.13) var(--to) 100%);
+}
+
+/* A control being driven by a cord reads its live value. */
+.ctl-read.driven { color: var(--rust); }
+.ctl-input[style*="--mod"]::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(90deg, transparent 0 calc(var(--mod) - 1px),
+      var(--rust) calc(var(--mod) - 1px) var(--mod), transparent var(--mod) 100%),
+    linear-gradient(90deg, var(--bone) 0 var(--fill), rgba(140,170,210,0.13) var(--fill) 100%);
+}
 
 /* The step editor: each bar is how much that step takes away. */
 #steps {
@@ -346,6 +398,12 @@ footer p {
 #rite li:not(:last-child)::after { content: " →"; color: rgba(140,170,210,0.18); }
 
 /* ---------------- narrow ---------------- */
+
+@media (max-width: 560px) {
+  #cord-head, .cord { grid-template-columns: 12px 1fr 1fr 0.8fr 0.8fr 64px; gap: 4px; }
+  .cord select { font-size: 8px; padding: 4px 2px; }
+  .cord-read { font-size: 8px; }
+}
 
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; }

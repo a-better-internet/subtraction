@@ -6,7 +6,10 @@
  * available gesture is refusal.
  */
 
-import { GROUPS, defaults, defaultPattern, PATTERN_STEPS } from './params.js';
+import {
+  GROUPS, defaults, defaultPattern, PATTERN_STEPS, DESTINATIONS, DEST_SPANS,
+} from './params.js';
+import { Modulation, SOURCES, CORDS, fmtRate, fmtDepth } from './modulation.js';
 
 const NUMERALS = ['I', 'II', 'III', 'IV'];
 
@@ -26,11 +29,14 @@ export class UI {
     this.preserved = [];
     this.controls = new Map();
     this.pattern = defaultPattern();
+    this.mod = new Modulation();
+    this.modValues = {};
     this.drag = null;
     this.holdSince = 0;
 
     this.buildAbsencePanel();
     this.buildStepGrid();
+    this.buildPatchBay();
     this.buildGroups();
     this.bindField();
     this.bindKeys();
@@ -129,6 +135,7 @@ export class UI {
 
     this.syncStepGrid();
     this.syncStepLength();
+    if (this.cordRows) this.syncAllCords();
   }
 
   setStep(i, depth) {
@@ -154,6 +161,110 @@ export class UI {
     this.lastStep = step;
     this.stepCells.forEach((cell, i) => cell.classList.toggle('now', i === step));
   }
+
+  /* ---------------- the patch bay ---------------- */
+
+  buildPatchBay() {
+    const host = this.root.querySelector('#cords');
+    this.cordRows = [];
+    for (let i = 0; i < CORDS; i++) {
+      const row = document.createElement('div');
+      row.className = 'cord';
+
+      const n = document.createElement('span');
+      n.className = 'cord-n';
+      n.textContent = String(i + 1);
+
+      const src = document.createElement('select');
+      src.className = 'cord-src';
+      src.setAttribute('aria-label', `cord ${i + 1} source`);
+      for (const o of SOURCES) {
+        const opt = document.createElement('option');
+        opt.value = o.key; opt.textContent = o.label;
+        src.appendChild(opt);
+      }
+
+      const dst = document.createElement('select');
+      dst.className = 'cord-dst';
+      dst.setAttribute('aria-label', `cord ${i + 1} destination`);
+      for (const o of DESTINATIONS) {
+        const opt = document.createElement('option');
+        opt.value = o.key; opt.textContent = o.label;
+        dst.appendChild(opt);
+      }
+
+      const rate = document.createElement('input');
+      rate.type = 'range'; rate.min = 0; rate.max = 1; rate.step = 0.001;
+      rate.className = 'cord-rate';
+      rate.setAttribute('aria-label', `cord ${i + 1} rate`);
+
+      const depth = document.createElement('input');
+      depth.type = 'range'; depth.min = -1; depth.max = 1; depth.step = 0.001;
+      depth.className = 'cord-depth';
+      depth.setAttribute('aria-label', `cord ${i + 1} depth`);
+
+      const read = document.createElement('span');
+      read.className = 'cord-read';
+
+      row.append(n, src, dst, rate, depth, read);
+      host.appendChild(row);
+
+      const cord = this.mod.cords[i];
+      src.value = cord.source; dst.value = cord.dest;
+      rate.value = cord.rate; depth.value = cord.depth;
+
+      const sync = () => {
+        cord.source = src.value;
+        cord.dest = dst.value;
+        cord.rate = +rate.value;
+        cord.depth = +depth.value;
+        this.syncCord(i);
+      };
+      [src, dst, rate, depth].forEach((el) => el.addEventListener('input', sync));
+
+      this.cordRows.push({ row, src, dst, rate, depth, read });
+      this.syncCord(i);
+    }
+  }
+
+  syncCord(i) {
+    const r = this.cordRows[i];
+    const c = this.mod.cords[i];
+    const patched = c.source !== 'none' && c.dest !== 'none' && c.depth !== 0;
+    r.row.classList.toggle('patched', patched);
+    r.read.textContent = `${fmtDepth(c.depth)} · ${fmtRate(c.rate)}`;
+    r.rate.style.setProperty('--fill', (c.rate * 100).toFixed(1) + '%');
+    // Depth is an attenuverter: the track fills out from the centre.
+    const d = c.depth;
+    r.depth.style.setProperty('--from', (d < 0 ? 50 + d * 50 : 50).toFixed(1) + '%');
+    r.depth.style.setProperty('--to', (d < 0 ? 50 : 50 + d * 50).toFixed(1) + '%');
+    if (r.src.value !== c.source) r.src.value = c.source;
+    if (r.dst.value !== c.dest) r.dst.value = c.dest;
+    if (+r.rate.value !== c.rate) r.rate.value = c.rate;
+    if (+r.depth.value !== c.depth) r.depth.value = c.depth;
+  }
+
+  syncAllCords() { for (let i = 0; i < CORDS; i++) this.syncCord(i); }
+
+  /* Called every frame with what the cords are doing, so a control that is
+   * being driven reads its live value rather than where its slider sits. */
+  showModulated(values) {
+    for (const key in this.modValues) {
+      if (!(key in values)) this.refresh(key);
+    }
+    this.modValues = values;
+    for (const key in values) {
+      const c = this.controls.get(key);
+      if (!c || c.p.type === 'select') continue;
+      const v = Math.max(c.p.min, Math.min(c.p.max, this.state[key] + values[key]));
+      c.readout.textContent = c.p.fmt ? c.p.fmt(v) : String(v);
+      c.readout.classList.add('driven');
+      const t = (v - c.p.min) / (c.p.max - c.p.min);
+      c.input.style.setProperty('--mod', (t * 100).toFixed(1) + '%');
+    }
+  }
+
+  spans() { return DEST_SPANS; }
 
   /* ---------------- generated parameter controls ---------------- */
 
@@ -239,6 +350,8 @@ export class UI {
     const v = this.state[key];
     if (c.p.type !== 'select') {
       c.readout.textContent = c.p.fmt ? c.p.fmt(v) : String(v);
+      c.readout.classList.remove('driven');
+      c.input.style.removeProperty('--mod');
       // the track fills from the left as more is taken away
       const t = (v - c.p.min) / (c.p.max - c.p.min);
       c.input.style.setProperty('--fill', (t * 100).toFixed(1) + '%');
@@ -251,6 +364,7 @@ export class UI {
     this.syncVoidUI();
     this.syncStepGrid();
     this.syncStepLength();
+    if (this.cordRows) this.syncAllCords();
   }
 
   /* ---------------- excavation gesture ---------------- */
@@ -351,6 +465,7 @@ export class UI {
       state: { ...this.state },
       voids: this.voids.map((v) => ({ ...v })),
       pattern: [...this.pattern],
+      cords: this.mod.serialise(),
       at: new Date(),
     });
     this.renderPreserved();
@@ -362,6 +477,7 @@ export class UI {
     this.state = { ...s.state };
     this.voids = s.voids.map((v) => ({ ...v }));
     this.pattern = [...(s.pattern || this.pattern)];
+    if (s.cords) this.mod.restore(s.cords);
     this.refreshAll();
     this.engine.pushParams(this.state);
     this.engine.setPattern(this.pattern);
