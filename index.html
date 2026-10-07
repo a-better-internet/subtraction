@@ -8,88 +8,88 @@
 <link rel="stylesheet" href="css/subtraction.css">
 </head>
 <body>
+<div id="shell">
 
-<header id="top">
-  <h1>SUBTRACTION</h1>
-  <p class="sub">an instrument for sculpting infinity</p>
-  <div id="transport">
-    <button id="enter">ENTER</button>
-    <button id="withdraw" disabled>WITHDRAW</button>
-    <button id="preserve" disabled>PRESERVE</button>
-    <button id="release" disabled>RELEASE</button>
-    <button id="extract" disabled>EXTRACT</button>
-  </div>
-  <p id="status">the field is already sounding. it is waiting to be entered.</p>
-</header>
+  <header id="masthead">
+    <div class="mast-id">
+      <h1>SUBTRACTION<sup>&reg;</sup></h1>
+      <p class="mast-sub">AN INSTRUMENT FOR SCULPTING INFINITY</p>
+    </div>
 
-<main>
-  <aside id="rail-left" class="rail"></aside>
+    <div class="mast-cat">
+      <span class="cat-no">SBTR&thinsp;/&thinsp;001</span>
+      <span class="cat-line">STEREO &middot; NON&ndash;ADDITIVE &middot; CONTINUOUS</span>
+    </div>
 
-  <section id="centre">
-    <div id="field-wrap">
-      <canvas id="field" aria-label="the subtraction field"></canvas>
-      <div id="veil">
-        <p>the sound is already complete</p>
-        <p class="small">there is no oscillator to choose and nothing to construct.<br>
-          press ENTER, then do nothing for a while.</p>
+    <div id="transport">
+      <button id="enter"><b>01</b>ENTER</button>
+      <button id="withdraw" disabled><b>02</b>WITHDRAW</button>
+      <button id="preserve" disabled><b>03</b>PRESERVE</button>
+      <button id="release" disabled><b>04</b>RELEASE</button>
+      <button id="extract" disabled><b>05</b>EXTRACT</button>
+    </div>
+  </header>
+
+  <p id="status">THE FIELD IS ALREADY SOUNDING. IT IS WAITING TO BE ENTERED.</p>
+
+  <main id="stage">
+
+    <!-- ---------------- the field ---------------- -->
+    <section id="field-col">
+      <div id="field-wrap">
+        <canvas id="field" aria-label="the subtraction field"></canvas>
+        <div id="veil">
+          <p class="veil-big">THE SOUND IS<br>ALREADY COMPLETE</p>
+          <p class="veil-small">there is no oscillator to choose and nothing to construct.<br>
+            press ENTER, then do nothing for a while.</p>
+        </div>
+        <span class="reg reg-tl"></span><span class="reg reg-tr"></span>
+        <span class="reg reg-bl"></span><span class="reg reg-br"></span>
       </div>
-    </div>
 
-    <div id="field-meta">
-      <div class="metric"><span>REMOVED</span><b id="removed">0%</b></div>
-      <div class="metric"><span>ROOT</span><b id="root">—</b></div>
-      <div class="metric wide"><span>REMAINING</span><div id="meter"><div id="meter-fill"></div></div></div>
-    </div>
-
-    <div id="absence-panel">
-      <h2>ABSENCES</h2>
-      <p class="note">drag in the field to steer one. hold still to press it deeper.
-        shift-drag for depth, scroll for size, keys 1–4 to choose.</p>
-      <div id="absences"></div>
-    </div>
-
-    <div id="pulse-panel">
-      <h2>PULSE</h2>
-      <p class="note">each step holds for one division. its bar is how much is taken
-        out while it holds — draw across them, and set LENGTH to crop the pattern.</p>
-      <div id="steps"></div>
-    </div>
-
-    <div id="patch-wrap">
-      <h2>PATCH BAY</h2>
-      <p class="note">six cords. a voltage from somewhere, moving one control.
-        nothing here makes sound — it only moves the things that take sound away.
-        depth is an attenuverter: negative inverts the voltage.</p>
-      <div id="cord-head">
-        <span></span><span>SOURCE</span><span>INTO</span>
-        <span>RATE</span><span>DEPTH</span><span></span>
+      <div id="readouts">
+        <div class="ro"><span>REMOVED</span><b id="removed">0%</b></div>
+        <div class="ro"><span>ROOT</span><b id="root">&mdash;</b></div>
+        <div class="ro ro-wide"><span>REMAINING</span>
+          <div id="meter"><div id="meter-fill"></div></div>
+        </div>
       </div>
-      <div id="cords"></div>
-    </div>
 
-    <div id="history-wrap">
-      <h2>TEMPORAL EROSION</h2>
-      <canvas id="history" aria-label="history of what was allowed to remain"></canvas>
-    </div>
+      <section class="block" id="absence-panel">
+        <h2><i>A</i>ABSENCES</h2>
+        <p class="note">drag the field to steer one &middot; hold still to press it deeper &middot;
+          shift-drag for depth &middot; scroll for size &middot; keys 1&ndash;4</p>
+        <div id="absences"></div>
+      </section>
 
-    <div id="preserved-wrap">
-      <h2>PRESERVED STATES</h2>
-      <div id="preserved"></div>
-    </div>
-  </section>
+      <section class="block" id="history-wrap">
+        <h2><i>B</i>TEMPORAL EROSION</h2>
+        <canvas id="history" aria-label="history of what was allowed to remain"></canvas>
+      </section>
 
-  <aside id="rail-right" class="rail"></aside>
-</main>
+      <section class="block" id="preserved-wrap">
+        <h2><i>C</i>PRESERVED STATES</h2>
+        <div id="preserved"></div>
+      </section>
+    </section>
 
-<footer>
-  <p>There is no add operation anywhere in this interface. You can only
-     remove, suppress, erase, bury, obscure, isolate, silence, constrain, or wait.</p>
-  <ol id="rite">
-    <li>ENTER</li><li>LISTEN</li><li>IDENTIFY</li><li>REMOVE</li>
-    <li>WAIT</li><li>REMOVE AGAIN</li><li>PRESERVE</li><li>RELEASE</li>
-  </ol>
-</footer>
+    <!-- ---------------- the console ---------------- -->
+    <nav id="tabs" role="tablist" aria-label="parameter groups"></nav>
+    <section id="panel"></section>
 
+  </main>
+
+  <footer id="colophon">
+    <p class="rule-text">THERE IS NO ADD OPERATION ANYWHERE IN THIS INTERFACE.
+      YOU CAN ONLY REMOVE, SUPPRESS, ERASE, BURY, OBSCURE, ISOLATE, SILENCE,
+      CONSTRAIN, OR WAIT.</p>
+    <ol id="rite">
+      <li>ENTER</li><li>LISTEN</li><li>IDENTIFY</li><li>REMOVE</li>
+      <li>WAIT</li><li>REMOVE AGAIN</li><li>PRESERVE</li><li>RELEASE</li>
+    </ol>
+  </footer>
+
+</div>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

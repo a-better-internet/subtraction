@@ -98,13 +98,13 @@ export class Visualizer {
 
     // ground
     const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    bg.addColorStop(0, '#0a0f16');
-    bg.addColorStop(1, '#05070b');
+    bg.addColorStop(0, '#101319');
+    bg.addColorStop(1, '#08090b');
     ctx.fillStyle = bg;
     ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
 
     // graticule: decade frequency lines and the stereo axis
-    ctx.strokeStyle = 'rgba(120,160,200,0.07)';
+    ctx.strokeStyle = 'rgba(190,196,180,0.06)';
     ctx.lineWidth = 1;
     for (let i = 1; i < 10; i++) {
       const y = i / 10;
@@ -132,8 +132,9 @@ export class Visualizer {
       const yOf = (i) => cy - ((i / (VB - 1)) - 0.5) * 2 * r * V_SPAN;
 
       // ---- ghost: the source as it arrived, before subtraction ----
+      // the source as it arrived, before anything was taken out of it
       this.ribbon(ctx, b, 0, VB, VB, yOf, cx, amp, comp,
-        'rgba(48,62,132,0.30)', 'rgba(84,104,190,0.40)');
+        'rgba(58,62,50,0.30)', 'rgba(104,112,82,0.34)');
 
       // ---- scar tissue ----
       for (let i = 0; i < VB; i++) {
@@ -147,7 +148,7 @@ export class Visualizer {
 
       // ---- survivor ----
       this.ribbon(ctx, b, VB * 2, VB * 3, VB, yOf, cx, amp, comp,
-        'rgba(198,226,246,0.26)', 'rgba(226,244,255,0.82)');
+        'rgba(233,233,226,0.10)', 'rgba(210,242,77,0.92)');
     }
 
     // ---- the absences: holes of true black ----
@@ -165,12 +166,12 @@ export class Visualizer {
         ctx.beginPath(); ctx.arc(p.px, p.py, rad, 0, TAU); ctx.fill();
       }
       ctx.strokeStyle = i === this.selected
-        ? 'rgba(236,206,140,0.75)' : `rgba(150,170,200,${0.12 + 0.2 * v.depth})`;
+        ? 'rgba(210,242,77,0.8)' : `rgba(190,196,180,${0.12 + 0.2 * v.depth})`;
       ctx.lineWidth = i === this.selected ? 1.3 : 1;
       ctx.beginPath(); ctx.arc(p.px, p.py, rad, 0, TAU); ctx.stroke();
 
-      ctx.fillStyle = i === this.selected ? 'rgba(236,206,140,0.9)' : 'rgba(150,170,200,0.4)';
-      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillStyle = i === this.selected ? 'rgba(210,242,77,0.92)' : 'rgba(190,196,180,0.38)';
+      ctx.font = '8px ui-monospace, monospace';
       ctx.textAlign = 'center';
       ctx.fillText(['I', 'II', 'III', 'IV'][i], p.px, p.py + 3);
     });
@@ -178,7 +179,7 @@ export class Visualizer {
     // ---- where gravity is pulling ----
     if (f && state.gravityAmount > 0.01) {
       const p = this.toCanvas(f.gravX, f.gravY);
-      ctx.strokeStyle = `rgba(232,120,96,${0.25 + 0.5 * state.gravityAmount})`;
+      ctx.strokeStyle = `rgba(255,90,43,${0.3 + 0.55 * state.gravityAmount})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(p.px - 7, p.py); ctx.lineTo(p.px + 7, p.py);
@@ -195,7 +196,7 @@ export class Visualizer {
     ctx.restore();
 
     // rim
-    ctx.strokeStyle = 'rgba(140,170,210,0.18)';
+    ctx.strokeStyle = 'rgba(190,196,180,0.16)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.stroke();
 
@@ -236,8 +237,8 @@ export class Visualizer {
   }
 
   labels(ctx, cx, cy, r) {
-    ctx.font = '9px ui-monospace, monospace';
-    ctx.fillStyle = 'rgba(150,175,205,0.38)';
+    ctx.font = '8px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(123,129,145,0.6)';
     ctx.textAlign = 'center';
     ctx.fillText('HIGH', cx, cy - r - 8);
     ctx.fillText('LOW', cx, cy + r + 16);
@@ -257,7 +258,7 @@ export class Visualizer {
     hc.globalCompositeOperation = 'copy';
     hc.drawImage(this.hCanvas, -1, 0);
     hc.globalCompositeOperation = 'source-over';
-    hc.fillStyle = '#05070a';
+    hc.fillStyle = '#08090b';
     hc.fillRect(W - 1, 0, 1, H);
 
     for (let py = 0; py < H; py++) {
@@ -270,10 +271,11 @@ export class Visualizer {
         (20 * Math.log10(Math.max(1e-12, v * n)) + tilt + DB_RANGE) / DB_RANGE));
       const a = db(post);
       const ghost = db(pre) * 0.3;
+      // bone through to acid, so the strip reads as the same instrument
       const v = Math.pow(a, 1.25);
-      const red = Math.round(Math.min(255, 7 + ghost * 52 + v * 196));
-      const grn = Math.round(Math.min(255, 10 + ghost * 64 + v * 226));
-      const blu = Math.round(Math.min(255, 16 + ghost * 96 + v * 240));
+      const red = Math.round(Math.min(255, 8 + ghost * 60 + v * 202));
+      const grn = Math.round(Math.min(255, 9 + ghost * 66 + v * 234));
+      const blu = Math.round(Math.min(255, 11 + ghost * 44 + v * 96));
       hc.fillStyle = `rgb(${red},${grn},${blu})`;
       hc.fillRect(W - 1, py, 1, 1);
     }

@@ -7,7 +7,8 @@
  */
 
 import {
-  GROUPS, defaults, defaultPattern, PATTERN_STEPS, DESTINATIONS, DEST_SPANS,
+  GROUPS, TABS, ALL_PARAMS, defaults, defaultPattern, PATTERN_STEPS,
+  DESTINATIONS, DEST_SPANS,
 } from './params.js';
 import { Modulation, SOURCES, CORDS, fmtRate, fmtDepth } from './modulation.js';
 
@@ -35,9 +36,9 @@ export class UI {
     this.holdSince = 0;
 
     this.buildAbsencePanel();
+    this.buildGroups();
     this.buildStepGrid();
     this.buildPatchBay();
-    this.buildGroups();
     this.bindField();
     this.bindKeys();
     this.syncVoidUI();
@@ -92,7 +93,16 @@ export class UI {
   /* ---------------- the step editor ---------------- */
 
   buildStepGrid() {
-    const host = this.root.querySelector('#steps');
+    const panel = this.panels.get('pulse');
+    const block = document.createElement('section');
+    block.className = 'group';
+    block.innerHTML =
+      '<h3>THE PATTERN</h3>'
+      + '<p class="note">each step holds for one division. its bar is how much is '
+      + 'taken out while it holds &mdash; draw across them, and set LENGTH to crop.</p>'
+      + '<div id="steps"></div>';
+    panel.appendChild(block);
+    const host = block.querySelector('#steps');
     this.stepCells = [];
     for (let i = 0; i < PATTERN_STEPS; i++) {
       const cell = document.createElement('div');
@@ -136,12 +146,14 @@ export class UI {
     this.syncStepGrid();
     this.syncStepLength();
     if (this.cordRows) this.syncAllCords();
+    this.markTabs();
   }
 
   setStep(i, depth) {
     this.pattern[i] = depth;
     this.engine.setPattern(this.pattern);
     this.syncStepGrid();
+    this.markTabs();
   }
 
   syncStepGrid() {
@@ -165,7 +177,19 @@ export class UI {
   /* ---------------- the patch bay ---------------- */
 
   buildPatchBay() {
-    const host = this.root.querySelector('#cords');
+    const panel = this.panels.get('patch');
+    const block = document.createElement('section');
+    block.className = 'group';
+    block.innerHTML =
+      '<h3>THE PATCH BAY</h3>'
+      + '<p class="note">six cords. a voltage from somewhere, moving one control. '
+      + 'nothing here makes sound &mdash; it only moves the things that take sound '
+      + 'away. depth is an attenuverter: negative inverts the voltage.</p>'
+      + '<div id="cord-head"><span></span><span>SOURCE</span><span>INTO</span>'
+      + '<span>RATE</span><span>DEPTH</span><span></span></div>'
+      + '<div id="cords"></div>';
+    panel.appendChild(block);
+    const host = block.querySelector('#cords');
     this.cordRows = [];
     for (let i = 0; i < CORDS; i++) {
       const row = document.createElement('div');
@@ -232,6 +256,7 @@ export class UI {
     const c = this.mod.cords[i];
     const patched = c.source !== 'none' && c.dest !== 'none' && c.depth !== 0;
     r.row.classList.toggle('patched', patched);
+    this.markTabs();
     r.read.textContent = `${fmtDepth(c.depth)} · ${fmtRate(c.rate)}`;
     r.rate.style.setProperty('--fill', (c.rate * 100).toFixed(1) + '%');
     // Depth is an attenuverter: the track fills out from the centre.
@@ -269,23 +294,104 @@ export class UI {
   /* ---------------- generated parameter controls ---------------- */
 
   buildGroups() {
-    const left = this.root.querySelector('#rail-left');
-    const right = this.root.querySelector('#rail-right');
-    GROUPS.forEach((g) => {
-      const sec = document.createElement('section');
-      sec.className = 'group';
-      const h = document.createElement('h2');
-      h.textContent = g.name;
-      sec.appendChild(h);
-      if (g.note) {
-        const n = document.createElement('p');
-        n.className = 'note';
-        n.textContent = g.note;
-        sec.appendChild(n);
-      }
-      for (const p of g.params) sec.appendChild(this.buildControl(p));
-      (g.rail === 'right' ? right : left).appendChild(sec);
+    const tabHost = this.root.querySelector('#tabs');
+    const panelHost = this.root.querySelector('#panel');
+    this.panels = new Map();
+    this.tabButtons = new Map();
+
+    TABS.forEach((t, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-controls', `panel-${t.key}`);
+      btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      btn.innerHTML =
+        `<span class="tab-n">${t.n}</span>`
+        + `<span class="tab-glyph" data-glyph="${t.glyph}"></span>`
+        + `<span class="tab-label">${t.label}</span>`;
+      btn.addEventListener('click', () => this.selectTab(t.key));
+      tabHost.appendChild(btn);
+      this.tabButtons.set(t.key, btn);
+
+      const panel = document.createElement('div');
+      panel.className = 'panel-page';
+      panel.id = `panel-${t.key}`;
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-label', `${t.n} ${t.label}`);
+      panel.innerHTML =
+        `<div class="panel-head"><span class="panel-n">${t.n}</span>`
+        + `<h2>${t.label}</h2><span class="panel-cat">SBTR/001&thinsp;&middot;&thinsp;${t.n}</span></div>`;
+      panelHost.appendChild(panel);
+      this.panels.set(t.key, panel);
+
+      if (i === 0) { btn.classList.add('on'); panel.classList.add('on'); }
     });
+
+    for (const g of GROUPS) {
+      const panel = this.panels.get(g.tab);
+      if (!panel) continue;
+      panel.appendChild(this.buildGroup(g));
+    }
+    this.activeTab = TABS[0].key;
+
+    // Which tab each control lives under, so the rail can show where something
+    // has been engaged without the player having to open all nine.
+    this.tabOfParam = new Map();
+    for (const g of GROUPS) {
+      for (const p of g.params) this.tabOfParam.set(p.key, g.tab);
+    }
+    this.markTabs();
+  }
+
+  /* A tab is marked when anything under it has been moved off its default, or
+   * when a cord is plugged into one of its controls. */
+  markTabs() {
+    if (!this.tabButtons) return;
+    const live = new Set();
+    for (const p of ALL_PARAMS) {
+      if (this.state[p.key] !== p.def) {
+        const tab = this.tabOfParam.get(p.key);
+        if (tab) live.add(tab);
+      }
+    }
+    for (const c of this.mod.cords) {
+      if (c.source === 'none' || c.dest === 'none' || !c.depth) continue;
+      live.add('patch');
+      const tab = this.tabOfParam.get(c.dest);
+      if (tab) live.add(tab);
+    }
+    if (this.pattern.some((v, i) => v !== (i % 4 === 0 ? 0 : 1))) live.add('pulse');
+    for (const [k, btn] of this.tabButtons) btn.classList.toggle('live', live.has(k));
+  }
+
+  buildGroup(g) {
+    const sec = document.createElement('section');
+    sec.className = 'group';
+    const h = document.createElement('h3');
+    h.textContent = g.name;
+    sec.appendChild(h);
+    if (g.note) {
+      const n = document.createElement('p');
+      n.className = 'note';
+      n.textContent = g.note;
+      sec.appendChild(n);
+    }
+    for (const p of g.params) sec.appendChild(this.buildControl(p));
+    return sec;
+  }
+
+  selectTab(key) {
+    if (!this.panels.has(key)) return;
+    this.activeTab = key;
+    for (const [k, btn] of this.tabButtons) {
+      const on = k === key;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
+    for (const [k, p] of this.panels) p.classList.toggle('on', k === key);
+    const panel = this.panels.get(key);
+    if (panel) panel.scrollTop = 0;
+    this.root.querySelector('#panel').scrollTop = 0;
   }
 
   buildControl(p) {
@@ -328,6 +434,7 @@ export class UI {
       this.state[p.key] = p.int ? Math.round(raw) : raw;
       this.refresh(p.key);
       if (p.key === 'pulseSteps') this.syncStepLength();
+      this.markTabs();
       this.engine.pushParams(this.state);
     });
     wrap.appendChild(input);
@@ -365,6 +472,7 @@ export class UI {
     this.syncStepGrid();
     this.syncStepLength();
     if (this.cordRows) this.syncAllCords();
+    this.markTabs();
   }
 
   /* ---------------- excavation gesture ---------------- */

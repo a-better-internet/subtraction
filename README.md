@@ -64,6 +64,30 @@ It is deliberately too dense. The instrument's job is to make it less dense.
 
 ---
 
+## The console
+
+The field never leaves the screen. It sits on the left with the four absences
+and the erosion history under it, and the controls come to it through a
+numbered rail of nine tabs rather than one long scroll — so whatever you are
+moving, you can see what it is doing to the field while you move it.
+
+```
+01 FIELD     infinity, time scale, density
+02 ABSENCE   size, focus, movement, gravity
+03 SPECTRUM  spectral absence, roll-off
+04 TIME      temporal absence, persistence, the void
+05 HARMONY   harmonic absence, arpeggio
+06 PULSE     the pulse and its pattern
+07 PLEXUS    the network of feedback paths
+08 SPACE     depth, residue, output
+09 PATCH     the patch bay
+```
+
+A tab carries an acid mark when something under it has been moved off its
+default or a cord is plugged into one of its controls, so the rail doubles as a
+map of what is currently engaged. A control being driven by a cord reads its
+live value in flame rather than where its slider sits.
+
 ## The subtraction field
 
 The large circle is the whole sonic spectrum. **Vertical is frequency**

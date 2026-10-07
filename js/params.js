@@ -115,7 +115,7 @@ export const fmtInfinity = (v) =>
 export const GROUPS = [
   {
     name: 'FIELD',
-    rail: 'left',
+    tab: 'field',
     note: 'The source is already complete. These decide how much of it is its own.',
     params: [
       { key: 'infinity', mod: true, label: 'INFINITY', min: 0, max: 1, def: 0.62, fmt: fmtInfinity,
@@ -126,7 +126,7 @@ export const GROUPS = [
   },
   {
     name: 'DENSITY',
-    rail: 'left',
+    tab: 'field',
     note: 'How much of the source is allowed to remain.',
     params: [
       { key: 'density', mod: true, label: 'REMAINS', min: 0, max: 1, def: 1, fmt: fmtPct,
@@ -135,7 +135,7 @@ export const GROUPS = [
   },
   {
     name: 'ABSENCE',
-    rail: 'left',
+    tab: 'absence',
     note: 'Four absences exist in the field. They remove nothing until they are deepened.',
     params: [
       { key: 'absenceSize', mod: true, label: 'SIZE', min: 0, max: 1, def: 0.22, fmt: fmtPct,
@@ -150,7 +150,7 @@ export const GROUPS = [
   },
   {
     name: 'SPECTRAL ABSENCE',
-    rail: 'left',
+    tab: 'spectrum',
     note: 'A void dragged through the spectrum.',
     params: [
       { key: 'spectralMode', label: 'SHAPE', type: 'select', def: 'notch',
@@ -164,7 +164,7 @@ export const GROUPS = [
   },
   {
     name: 'TEMPORAL ABSENCE',
-    rail: 'left',
+    tab: 'time',
     note: 'Moments removed. The field goes on evolving inside the gaps.',
     params: [
       { key: 'temporalAmount', mod: true, label: 'AMOUNT', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -177,7 +177,7 @@ export const GROUPS = [
   },
   {
     name: 'PERSISTENCE',
-    rail: 'left',
+    tab: 'time',
     note: 'Whether subtraction is temporary or permanent.',
     params: [
       { key: 'memory', mod: true, label: 'MEMORY', min: 0, max: 1, def: 0.3, fmt: fmtMemory,
@@ -188,7 +188,7 @@ export const GROUPS = [
   },
   {
     name: 'GRAVITY',
-    rail: 'left',
+    tab: 'absence',
     note: 'What the subtraction is drawn toward.',
     params: [
       { key: 'gravityTarget', label: 'TARGET', type: 'select', def: 'frequency',
@@ -200,7 +200,7 @@ export const GROUPS = [
   },
   {
     name: 'HARMONIC ABSENCE',
-    rail: 'right',
+    tab: 'harmony',
     note: 'Everything out of tune with the root is taken away. What is left is '
         + 'the field, in tune.',
     params: [
@@ -218,7 +218,7 @@ export const GROUPS = [
   },
   {
     name: 'PULSE',
-    rail: 'right',
+    tab: 'pulse',
     note: 'A pulse of absence. Each step decides how much is taken out while it '
         + 'is the step that holds.',
     params: [
@@ -235,7 +235,7 @@ export const GROUPS = [
   },
   {
     name: 'ARPEGGIO',
-    rail: 'right',
+    tab: 'harmony',
     note: 'The root steps with the pulse, so a different set of partials is left '
         + 'standing on each one. Needs HARMONIC ABSENCE to be heard.',
     params: [
@@ -246,7 +246,7 @@ export const GROUPS = [
   },
   {
     name: 'ROLL-OFF',
-    rail: 'right',
+    tab: 'spectrum',
     note: 'The top of the field taken away, for when it is too bright.',
     params: [
       { key: 'rolloff', mod: true, label: 'ROLL-OFF', min: 0, max: 1, def: 0.2, fmt: fmtRolloff,
@@ -257,7 +257,7 @@ export const GROUPS = [
   },
   {
     name: 'THE PLEXUS',
-    rail: 'right',
+    tab: 'plexus',
     note: 'A network of feedback paths the signal is already circulating '
         + 'through. Remove the direct sound under DEPTH & SPACE to hear it.',
     params: [
@@ -284,7 +284,7 @@ export const GROUPS = [
   },
   {
     name: 'DEPTH & SPACE',
-    rail: 'right',
+    tab: 'space',
     note: 'Sound is not silenced but made inaccessible.',
     params: [
       { key: 'depth', mod: true, label: 'DIRECT REMOVAL', min: 0, max: 1, def: 0, fmt: fmtDepth, node: true,
@@ -297,7 +297,7 @@ export const GROUPS = [
   },
   {
     name: 'THE VOID',
-    rail: 'right',
+    tab: 'time',
     note: 'Silence treated as material.',
     params: [
       { key: 'voidDensity', mod: true, label: 'DENSITY', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -312,7 +312,7 @@ export const GROUPS = [
   },
   {
     name: 'RESIDUE',
-    rail: 'right',
+    tab: 'space',
     note: 'What subtraction leaves behind, once the veil over it is removed.',
     params: [
       { key: 'residueVeil', mod: true, label: 'VEIL REMOVED', min: 0, max: 1, def: 0, fmt: fmtPct,
@@ -324,12 +324,26 @@ export const GROUPS = [
   },
   {
     name: 'OUTPUT',
-    rail: 'right',
+    tab: 'space',
     params: [
       { key: 'attenuation', mod: true, label: 'ATTENUATION', min: 0, max: 1, def: 0, fmt: fmtPct, node: true,
         hint: 'level removed from the output' },
     ],
   },
+];
+
+/* The console is tabbed, not a scroll: the field has to stay in view while a
+ * control is being moved, because the field is what the control is acting on. */
+export const TABS = [
+  { key: 'field', n: '01', label: 'FIELD', glyph: 'circle' },
+  { key: 'absence', n: '02', label: 'ABSENCE', glyph: 'hole' },
+  { key: 'spectrum', n: '03', label: 'SPECTRUM', glyph: 'bars' },
+  { key: 'time', n: '04', label: 'TIME', glyph: 'gap' },
+  { key: 'harmony', n: '05', label: 'HARMONY', glyph: 'comb' },
+  { key: 'pulse', n: '06', label: 'PULSE', glyph: 'steps' },
+  { key: 'plexus', n: '07', label: 'PLEXUS', glyph: 'net' },
+  { key: 'space', n: '08', label: 'SPACE', glyph: 'depth' },
+  { key: 'patch', n: '09', label: 'PATCH', glyph: 'cord' },
 ];
 
 export const ALL_PARAMS = GROUPS.flatMap((g) => g.params);
